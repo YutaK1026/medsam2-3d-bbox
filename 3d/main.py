@@ -36,6 +36,22 @@ def show_box(box, ax):
     w, h = box[2] - box[0], box[3] - box[1]
     ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))
 
+def get_bbox(mask):
+    """
+    mask_list:
+        ([すべて0],[x座標],[y座標])
+    segmentationした座標が入力されている
+    大体円とかそんな形になっているはず
+    これをすべて内包するbboxを生成したい -> x, yそれぞれの最大最小を出力すればよいのではないか
+    """
+    mask_list = np.where(mask == True)
+    x_max = np.amax(mask_list[1])
+    x_min = np.amin(mask_list[1])
+    y_max = np.amax(mask_list[2])
+    y_min = np.amin(mask_list[2])
+    box = np.array([x_min, y_min, x_max, y_max], dtype=np.float32)
+    return box
+    
 
 def segment_with_bbox(frame_names: list[str], start_index: int, end_index: int, obj_id: int, box: np.ndarray):
     inference_state = sam2_model.init_state(video_path = VIDEO_FRAMES_DIRECTORY_PATH)
@@ -71,6 +87,9 @@ def segment_with_bbox(frame_names: list[str], start_index: int, end_index: int, 
         plt.title(f"frame {out_frame_idx}")
         plt.imshow(Image.open(os.path.join(VIDEO_FRAMES_DIRECTORY_PATH, frame_names[out_frame_idx])))
         for out_obj_id, out_mask in video_segments[out_frame_idx].items():
+            if True in out_mask:
+                print(f"セグメンテーションされたpngのファイル: {out_frame_idx}")
+                bbox = get_bbox(out_mask)
             show_mask(out_mask, plt.gca(), obj_id=out_obj_id)
         plt.savefig(f'./datas/data_010/image_{out_frame_idx}.png')
 
@@ -84,6 +103,6 @@ box = np.array([161, 279, 204, 324], dtype=np.float32)
 
 segment_with_bbox(frame_names=frame_names, start_index=114, end_index=len(frame_names), obj_id=4, box=box)
 
-frame_names = frame_names[0:114]
-frame_names.reverse()
-segment_with_bbox(frame_names=frame_names, start_index=0, end_index=114, obj_id=4, box=box)
+# frame_names = frame_names[0:114]
+# frame_names.reverse()
+# segment_with_bbox(frame_names=frame_names, start_index=0, end_index=114, obj_id=4, box=box)
