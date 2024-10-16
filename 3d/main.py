@@ -6,6 +6,7 @@ import supervision as sv
 import matplotlib.pyplot as plt
 import os
 from PIL import Image
+import json
 
 CHECKPOINT = "../model/3d/latest_epoch.pth"
 CONFIG = "sam2_hiera_s.yaml"
@@ -49,7 +50,7 @@ def get_bbox(mask):
     x_min = np.amin(mask_list[1])
     y_max = np.amax(mask_list[2])
     y_min = np.amin(mask_list[2])
-    box = np.array([x_min, y_min, x_max, y_max], dtype=np.float32)
+    box = np.array([x_min, y_min, x_max, y_max], dtype=np.float64).tolist()
     return box
     
 
@@ -62,37 +63,34 @@ def segment_with_bbox(frame_names: list[str], start_index: int, end_index: int, 
         frame_idx=start_index,
         obj_id=obj_id,
         box=box,
-    ) # bboxを付与している．
+    ) 
+    # bboxを付与
 
-    # show the results on the current (interacted) frame
-    plt.figure(figsize=(9, 6))
-    plt.title(f"frame { start_index}")
-    plt.imshow(Image.open(os.path.join(VIDEO_FRAMES_DIRECTORY_PATH, frame_names[ start_index])))
-    show_box(box, plt.gca())
-    show_mask((out_mask_logits[0] > 0.0).cpu().numpy(), plt.gca(), obj_id=out_obj_ids[0])
-
-    # run propagation throughout the video and collect the results in a dict
-    video_segments = {}  # video_segments contains the per-frame segmentation results
+    video_segments = {}
     for out_frame_idx, out_obj_ids, out_mask_logits in sam2_model.propagate_in_video(inference_state):
         video_segments[out_frame_idx] = {
             out_obj_id: (out_mask_logits[i] > 0.0).cpu().numpy()
             for i, out_obj_id in enumerate(out_obj_ids)
         }
 
-    # render the segmentation results every few frames
     vis_frame_stride = 1
     plt.close("all")
+    new_list = []
     for out_frame_idx in range(start_index, end_index, vis_frame_stride):
         plt.figure(figsize=(6, 4))
         plt.title(f"frame {out_frame_idx}")
         plt.imshow(Image.open(os.path.join(VIDEO_FRAMES_DIRECTORY_PATH, frame_names[out_frame_idx])))
         for out_obj_id, out_mask in video_segments[out_frame_idx].items():
             if True in out_mask:
-                print(f"セグメンテーションされたpngのファイル: {out_frame_idx}")
-                bbox = get_bbox(out_mask)
+                dict = {}
+                dict["id"] = out_frame_idx
+                dict["box"] = get_bbox(out_mask)
+                new_list.append(dict)
             show_mask(out_mask, plt.gca(), obj_id=out_obj_id)
         plt.savefig(f'./datas/data_010/image_{out_frame_idx}.png')
+    json.dump(new_list, dict_json)
 
+dict_json = open("datas/data.json", "w")
 
 frame_names = [
         p for p in os.listdir(VIDEO_FRAMES_DIRECTORY_PATH)
@@ -103,6 +101,7 @@ box = np.array([161, 279, 204, 324], dtype=np.float32)
 
 segment_with_bbox(frame_names=frame_names, start_index=114, end_index=len(frame_names), obj_id=4, box=box)
 
-# frame_names = frame_names[0:114]
-# frame_names.reverse()
-# segment_with_bbox(frame_names=frame_names, start_index=0, end_index=114, obj_id=4, box=box)
+# bboxラベルが付与されたものより上のsegmentationを行う
+frame_names = frame_names[0:114]
+frame_names.reverse()
+segment_with_bbox(frame_names=frame_names, start_index=0, end_index=114, obj_id=4, box=box)
