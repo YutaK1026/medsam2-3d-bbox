@@ -18,41 +18,10 @@ def show_mask(mask, ax, obj_id=None, random_color=False):
     else:
         cmap = plt.get_cmap("tab10")
         cmap_idx = 0 if obj_id is None else obj_id
-        color = np.array([*cmap(cmap_idx)[:3], 0.6])
+        color = np.array([*cmap(cmap_idx)[:3], 1])
     h, w = mask.shape[-2:]
     mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
     ax.imshow(mask_image)
-
-
-def show_points(coords, labels, ax, marker_size=200):
-    pos_points = coords[labels == 1]
-    neg_points = coords[labels == 0]
-    ax.scatter(
-        pos_points[:, 0],
-        pos_points[:, 1],
-        color="green",
-        marker="*",
-        s=marker_size,
-        edgecolor="white",
-        linewidth=1.25,
-    )
-    ax.scatter(
-        neg_points[:, 0],
-        neg_points[:, 1],
-        color="red",
-        marker="*",
-        s=marker_size,
-        edgecolor="white",
-        linewidth=1.25,
-    )
-
-
-def show_box(box, ax):
-    x0, y0 = box[0], box[1]
-    w, h = box[2] - box[0], box[3] - box[1]
-    ax.add_patch(
-        plt.Rectangle((x0, y0), w, h, edgecolor="green", facecolor=(0, 0, 0, 0), lw=2)
-    )
 
 
 def get_bbox(mask):
@@ -64,10 +33,10 @@ def get_bbox(mask):
     これをすべて内包するbboxを生成したい -> x, yそれぞれの最大最小を出力すればよいのではないか
     """
     mask_list = np.where(mask)  # 元はmask == Trueだった．flakeに怒られてこうした
-    x_max = np.amax(mask_list[1])
-    x_min = np.amin(mask_list[1])
-    y_max = np.amax(mask_list[2])
-    y_min = np.amin(mask_list[2])
+    y_max = np.amax(mask_list[1])
+    y_min = np.amin(mask_list[1])
+    x_max = np.amax(mask_list[2])
+    x_min = np.amin(mask_list[2])
     box = np.array([x_min, y_min, x_max, y_max], dtype=np.float64).tolist()
     return box
 
@@ -116,8 +85,8 @@ def segment_with_bbox(
                 dict["id"] = out_frame_idx
                 dict["box"] = get_bbox(out_mask)
                 new_list.append(dict)
-            show_mask(out_mask, plt.gca(), obj_id=out_obj_id)
-        plt.savefig(f"./datas/data_010/image_{out_frame_idx}.png")
+            show_mask(out_mask, plt.gca(), obj_id=1)
+        plt.savefig(f"./datas/data_009/image_{out_frame_idx}.png")
     json.dump(new_list, dict_json)
 
 
@@ -129,19 +98,19 @@ frame_names = [
     if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG"]
 ]
 frame_names.sort(key=lambda p: int(os.path.splitext(p)[0]))
-box = np.array([161, 279, 204, 324], dtype=np.float32)
+box = np.array([160, 313, 174, 323], dtype=np.float32)
 
 segment_with_bbox(
     frame_names=frame_names,
-    start_index=114,
+    start_index=52,
     end_index=len(frame_names),
-    obj_id=4,
+    obj_id=None,
     box=box,
 )
 
-# bboxラベルが付与されたものより上のsegmentationを行う
-frame_names = frame_names[0:114]
-frame_names.reverse()
-segment_with_bbox(
-    frame_names=frame_names, start_index=0, end_index=114, obj_id=4, box=box
-)
+# # bboxラベルが付与されたものより上のsegmentationを行う
+# frame_names = frame_names[0:114]
+# frame_names.reverse()
+# segment_with_bbox(
+#     frame_names=frame_names, start_index=0, end_index=114, obj_id=4, box=box
+# )
